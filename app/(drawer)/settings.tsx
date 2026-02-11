@@ -3,8 +3,8 @@ import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import Typography from '@/components/Typography';
 import { getUserId, signOut } from '@/lib/auth';
-import { restore } from '@/lib/revenuecat';
-import { useEntitlements } from '@/state/entitlements';
+import { restorePurchases } from '@/lib/revenuecat';
+import { useProStatus } from '@/state/entitlements';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -13,7 +13,7 @@ import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-nat
 export default function SettingsScreen() {
   const router = useRouter();
   const [userId, setUserId] = useState<string>('');
-  const { pro, loading, refreshEntitlements } = useEntitlements();
+  const { isPro: pro, isLoading: loading, refresh: refreshEntitlements } = useProStatus();
   const [restoring, setRestoring] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
 
@@ -72,7 +72,7 @@ export default function SettingsScreen() {
   const handleRestore = async () => {
     try {
       setRestoring(true);
-      const { customerInfo, error } = await restore();
+      const { customerInfo, error } = await restorePurchases();
       
       if (error) {
         Alert.alert('Restore Failed', error.message);

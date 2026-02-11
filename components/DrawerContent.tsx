@@ -1,4 +1,4 @@
-import { useEntitlements } from '@/state/entitlements';
+import { useProStatus } from '@/state/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
     DrawerContentComponentProps,
@@ -24,7 +24,7 @@ const ITEMS: DrawerItem[] = [
 
 export default function DrawerContent(props: DrawerContentComponentProps) {
   const router = useRouter();
-  const pro = useEntitlements((s) => s.pro);
+  const pro = useProStatus((s) => s.isPro);
 
   const activeIndex = props.state.index;
   // Map drawer state route names to our items for highlighting

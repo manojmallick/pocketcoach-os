@@ -1,4 +1,4 @@
-import { useEntitlements } from '@/state/entitlements';
+import { useProStatus } from '@/state/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import React from 'react';
@@ -12,7 +12,7 @@ interface HeaderProps {
 export default function Header({ title = '' }: HeaderProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const pro = useEntitlements((s) => s.pro);
+  const pro = useProStatus((s) => s.isPro);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>

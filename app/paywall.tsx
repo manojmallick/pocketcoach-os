@@ -1,8 +1,8 @@
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Typography from '@/components/Typography';
-import { getOfferings, purchase, restore } from '@/lib/revenuecat';
-import { useEntitlements } from '@/state/entitlements';
+import { getOfferings, purchase, restorePurchases } from '@/lib/revenuecat';
+import { useProStatus } from '@/state/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -108,7 +108,7 @@ const FEATURES = [
 
 export default function PaywallScreen() {
   const router = useRouter();
-  const refreshEntitlements = useEntitlements((s) => s.refreshEntitlements);
+  const refresh = useProStatus((s) => s.refresh);
 
   const [state, setState] = useState<PaywallState>({ kind: 'loading' });
   const [purchaseState, setPurchaseState] = useState<PurchaseState>({ kind: 'idle' });
@@ -161,7 +161,7 @@ export default function PaywallScreen() {
         return;
       }
       if (customerInfo) {
-        await refreshEntitlements();
+        await refresh();
         Alert.alert('Welcome to Pro!', 'You now have full access to every coach.', [
           { text: 'Let's go', onPress: () => router.back() },
         ]);
@@ -178,14 +178,14 @@ export default function PaywallScreen() {
   const handleRestore = async () => {
     setPurchaseState({ kind: 'restoring' });
     try {
-      const { customerInfo, error } = await restore();
+      const { customerInfo, error } = await restorePurchases();
       if (error) {
         Alert.alert('Restore failed', error.message);
         setPurchaseState({ kind: 'idle' });
         return;
       }
       if (customerInfo) {
-        await refreshEntitlements();
+        await refresh();
         const hasPro = customerInfo.entitlements.active['pro'] !== undefined;
         if (hasPro) {
           Alert.alert('Restored!', 'Your Pro subscription is active again.', [

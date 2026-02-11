@@ -1,5 +1,6 @@
 import { ensureAuth } from '@/lib/auth';
 import { initPurchases } from '@/lib/revenuecat';
+import { startProStatusListener, useProStatus } from '@/state/entitlements';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -39,8 +40,10 @@ export default function RootLayout() {
       // 1. Ensure authentication is set up first
       await ensureAuth();
       
-      // 2. Initialize RevenueCat
+      // 2. Initialize RevenueCat + start foreground listener + first refresh
       await initPurchases();
+      startProStatusListener();
+      useProStatus.getState().refresh();
       
       // 3. Check onboarding status
       const userContext = await AsyncStorage.getItem('user_context');

@@ -1,7 +1,7 @@
 import Card from '@/components/Card';
 import Typography from '@/components/Typography';
 import { getCoachTemplates } from '@/lib/db';
-import { useEntitlements } from '@/state/entitlements';
+import { useProStatus } from '@/state/entitlements';
 import { CoachTemplate } from '@/types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
@@ -175,7 +175,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const [coaches, setCoaches] = useState<CoachTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const pro = useEntitlements((s) => s.pro);
+  const pro = useProStatus((s) => s.isPro);
 
   useEffect(() => {
     loadCoaches();
