@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: '(drawer)',
 };
 
 const lightTheme = {
@@ -58,14 +58,14 @@ export default function RootLayout() {
   useEffect(() => {
     if (isCheckingAuth) return;
 
-    const inTabsGroup = segments[0] === '(tabs)';
+    const inDrawerGroup = segments[0] === '(drawer)';
     
-    if (!hasCompletedOnboarding && inTabsGroup) {
+    if (!hasCompletedOnboarding && inDrawerGroup) {
       // User hasn't completed onboarding, redirect to onboarding
       router.replace('/onboarding');
     } else if (hasCompletedOnboarding && segments[0] === 'onboarding') {
-      // User has completed onboarding but is on onboarding screen, redirect to tabs
-      router.replace('/(tabs)/today');
+      // User has completed onboarding but is on onboarding screen, redirect to drawer
+      router.replace('/(drawer)/today');
     }
   }, [isCheckingAuth, hasCompletedOnboarding, segments]);
 
@@ -76,7 +76,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={lightTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
         <Stack.Screen 
           name="onboarding" 
           options={{ 
