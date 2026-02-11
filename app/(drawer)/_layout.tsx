@@ -75,6 +75,15 @@ export default function DrawerLayout() {
           headerShown: false,
         }}
       />
+      {/* Billing debug — hidden from drawer, accessible via Settings long-press */}
+      <Drawer.Screen
+        name="billing-debug"
+        options={{
+          drawerItemStyle: { display: 'none' },
+          headerShown: true,
+          header: () => <ScreenHeader title="Billing Debug" />,
+        }}
+      />
     </Drawer>
   );
 }

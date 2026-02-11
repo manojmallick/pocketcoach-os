@@ -1,6 +1,7 @@
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Typography from '@/components/Typography';
+import { billingWarning, getBuildModeLabel } from '@/lib/build-mode';
 import { getOfferings, purchase, restorePurchases } from '@/lib/revenuecat';
 import { useProStatus } from '@/state/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -59,6 +60,7 @@ function diagInfo(): { label: string; value: string }[] {
   const hasKey = Platform.OS === 'android' ? !!androidKey : !!iosKey;
 
   return [
+    { label: 'Build Mode', value: getBuildModeLabel() },
     { label: 'Platform', value: `${Platform.OS} ${Platform.Version}` },
     { label: 'Bundle', value: Constants.expoConfig?.android?.package ?? Constants.expoConfig?.ios?.bundleIdentifier ?? '—' },
     { label: 'Expo Go', value: isExpoGo ? 'Yes (native IAP unavailable)' : 'No (dev build)' },
@@ -287,6 +289,12 @@ export default function PaywallScreen() {
 
             {showDiag && (
               <Card style={styles.diagCard}>
+                {billingWarning() && (
+                  <View style={styles.diagBanner}>
+                    <MaterialIcons name="warning" size={16} color="#E65100" />
+                    <Text style={styles.diagBannerText}>{billingWarning()}</Text>
+                  </View>
+                )}
                 {state.raw && (
                   <View style={styles.diagRow}>
                     <Text style={styles.diagLabel}>Error</Text>
@@ -467,6 +475,16 @@ const styles = StyleSheet.create({
   diagRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   diagLabel: { fontSize: 13, fontWeight: '600', color: '#555' },
   diagValue: { fontSize: 13, color: '#333', flexShrink: 1, textAlign: 'right' },
+  diagBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 6,
+  },
+  diagBannerText: { fontSize: 12, color: '#E65100', flex: 1, lineHeight: 18 },
   restoreBtnError: { width: '100%', marginTop: 8 },
 
   /* Features */

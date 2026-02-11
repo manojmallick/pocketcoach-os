@@ -2,12 +2,13 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import Typography from '@/components/Typography';
+import { isDevBuild } from '@/lib/build-mode';
 import { getUserId, signOut } from '@/lib/auth';
 import { restorePurchases } from '@/lib/revenuecat';
 import { useProStatus } from '@/state/entitlements';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
@@ -16,6 +17,8 @@ export default function SettingsScreen() {
   const { isPro: pro, isLoading: loading, refresh: refreshEntitlements } = useProStatus();
   const [restoring, setRestoring] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const versionPressCount = useRef(0);
+  const versionPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadAuthStatus();
@@ -217,7 +220,23 @@ export default function SettingsScreen() {
           <Button title="Log Out" onPress={handleLogout} variant="secondary" />
         </View>
         
-        <Typography variant="caption" style={styles.version}>
+        <Typography variant="caption" style={styles.version}
+          onPress={() => {
+            // In dev builds, single tap opens billing debug
+            if (isDevBuild()) {
+              router.push('/(drawer)/billing-debug' as any);
+              return;
+            }
+            // In production, require 7 taps (like Android developer options)
+            versionPressCount.current += 1;
+            if (versionPressTimer.current) clearTimeout(versionPressTimer.current);
+            versionPressTimer.current = setTimeout(() => { versionPressCount.current = 0; }, 2000);
+            if (versionPressCount.current >= 7) {
+              versionPressCount.current = 0;
+              router.push('/(drawer)/billing-debug' as any);
+            }
+          }}
+        >
           Version 1.0.0
         </Typography>
       </ScrollView>
