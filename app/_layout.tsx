@@ -1,24 +1,98 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { ensureAuth } from '@/lib/auth';
+import { initPurchases } from '@/lib/revenuecat';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: '(tabs)',
+};
+
+const lightTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#000000',
+    background: '#FFFFFF',
+    card: '#FFFFFF',
+    text: '#000000',
+    border: '#F5F5F5',
+    notification: '#000000',
+  },
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const initializeApp = async () => {
+    try {
+      // 1. Ensure authentication is set up first
+      await ensureAuth();
+      
+      // 2. Initialize RevenueCat
+      await initPurchases();
+      
+      // 3. Check onboarding status
+      const userContext = await AsyncStorage.getItem('user_context');
+      if (userContext) {
+        const parsed = JSON.parse(userContext);
+        setHasCompletedOnboarding(!!parsed.onboardingCompleted);
+      }
+    } catch (error) {
+      console.error('Error initializing app:', error);
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isCheckingAuth) return;
+
+    const inTabsGroup = segments[0] === '(tabs)';
+    
+    if (!hasCompletedOnboarding && inTabsGroup) {
+      // User hasn't completed onboarding, redirect to onboarding
+      router.replace('/onboarding');
+    } else if (hasCompletedOnboarding && segments[0] === 'onboarding') {
+      // User has completed onboarding but is on onboarding screen, redirect to tabs
+      router.replace('/(tabs)/today');
+    }
+  }, [isCheckingAuth, hasCompletedOnboarding, segments]);
+
+  if (isCheckingAuth) {
+    return null; // Or a loading screen
+  }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={lightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen 
+          name="onboarding" 
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="paywall" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: false,
+          }} 
+        />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }
