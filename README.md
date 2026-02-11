@@ -1,41 +1,84 @@
 # PocketCoach OS
 
-A personal AI coaching app built with [Expo](https://expo.dev) and React Native.
+A personal AI coaching app built with [Expo](https://expo.dev), React Native, Supabase, and RevenueCat.
+
+## Prerequisites
+
+- Node.js 18+
+- [EAS CLI](https://docs.expo.dev/eas/): `npm install -g eas-cli`
+- An [Expo](https://expo.dev) account
 
 ## Get started
 
-1. Install dependencies
+```bash
+# 1. Install dependencies
+npm install
 
-   ```bash
-   npm install
-   ```
+# 2. Start the dev server (clear cache to avoid stale routes)
+npx expo start -c
+```
 
-2. Start the app (use `-c` to clear the bundler cache after switching branches or making routing changes)
+Open on a development build, Android emulator, iOS simulator, or Expo Go (limited — native billing unavailable).
 
-   ```bash
-   npx expo start -c
-   ```
+## EAS Build & Submit
 
-In the output, you'll find options to open the app in a
+```bash
+# Authenticate with Expo
+eas login
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+# Link this project (only needed once)
+eas init
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+# Development build (debug APK for dev-client)
+eas build -p android --profile development
+
+# Preview build (release APK for internal testing)
+eas build -p android --profile preview
+
+# Production build (AAB for Play Store)
+eas build -p android --profile production
+
+# Submit to Play Store internal track
+eas submit -p android --profile production
+```
+
+### Versioning
+
+- `version` in `app.json` is the user-facing version (e.g. `1.0.0`).
+- `versionCode` auto-increments on each production build via `appVersionSource: "remote"` + `autoIncrement: true` in `eas.json`.
+- See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the full internal-testing workflow.
+
+## Environment Variables
+
+Create a `.env` file at the project root:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_xxx
+EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_xxx
+```
+
+## Project Structure
+
+```
+app/              → File-based routes (expo-router)
+  (drawer)/       → Drawer navigator (Library, Chat, Today, Settings)
+  onboarding.tsx  → First-run welcome screen
+  paywall.tsx     → Upgrade to Pro modal
+components/       → Shared UI components
+constants/        → Theme, URLs
+lib/              → Auth, DB, RevenueCat, build-mode helpers
+state/            → Zustand stores (pro status)
+storage/          → AsyncStorage flag helpers
+store/            → (legacy — can be removed)
+supabase/         → Edge functions + migrations
+```
 
 ## Clearing the cache
 
-If you see stale screens (e.g. old template routes), clear the Metro cache:
+If you see stale screens (e.g. old routes), clear the Metro cache:
 
 ```bash
 npx expo start -c
 ```
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.

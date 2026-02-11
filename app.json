@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pocketcoach-os",
+    "name": "PocketCoach OS",
     "slug": "pocketcoach-os",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,8 +8,12 @@
     "scheme": "pocketcoachos",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.manoj.pocketcoachos"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.manoj.pocketcoachos",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -43,6 +49,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f7087b53-2cff-4d27-bae1-815be2436d5e"
+      },
+      "supabaseUrl": "",
+      "supabaseAnonKey": ""
+    },
+    "owner": "manoj079"
   }
 }
