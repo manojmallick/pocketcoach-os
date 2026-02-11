@@ -1,7 +1,7 @@
 import { ensureAuth } from '@/lib/auth';
 import { initPurchases } from '@/lib/revenuecat';
 import { startProStatusListener, useProStatus } from '@/state/entitlements';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasCompletedOnboarding } from '@/storage/flags';
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -27,7 +27,7 @@ const lightTheme = {
 
 export default function RootLayout() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
@@ -45,12 +45,9 @@ export default function RootLayout() {
       startProStatusListener();
       useProStatus.getState().refresh();
       
-      // 3. Check onboarding status
-      const userContext = await AsyncStorage.getItem('user_context');
-      if (userContext) {
-        const parsed = JSON.parse(userContext);
-        setHasCompletedOnboarding(!!parsed.onboardingCompleted);
-      }
+      // 3. Check onboarding flag (single source of truth)
+      const done = await hasCompletedOnboarding();
+      setOnboardingDone(done);
     } catch (error) {
       console.error('Error initializing app:', error);
     } finally {
@@ -62,15 +59,19 @@ export default function RootLayout() {
     if (isCheckingAuth) return;
 
     const inDrawerGroup = segments[0] === '(drawer)';
-    
-    if (!hasCompletedOnboarding && inDrawerGroup) {
-      // User hasn't completed onboarding, redirect to onboarding
+    const onPaywall = segments[0] === 'paywall';
+
+    // Never interrupt paywall — it can be pushed from anywhere
+    if (onPaywall) return;
+
+    if (!onboardingDone && inDrawerGroup) {
+      // First launch → show onboarding
       router.replace('/onboarding');
-    } else if (hasCompletedOnboarding && segments[0] === 'onboarding') {
-      // User has completed onboarding but is on onboarding screen, redirect to drawer
-      router.replace('/(drawer)/today');
+    } else if (onboardingDone && segments[0] === 'onboarding') {
+      // Already onboarded but somehow on onboarding screen → library
+      router.replace('/(drawer)/library');
     }
-  }, [isCheckingAuth, hasCompletedOnboarding, segments]);
+  }, [isCheckingAuth, onboardingDone, segments]);
 
   if (isCheckingAuth) {
     return null; // Or a loading screen

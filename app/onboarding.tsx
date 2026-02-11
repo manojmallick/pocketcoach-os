@@ -1,266 +1,70 @@
 import Button from '@/components/Button';
 import Typography from '@/components/Typography';
-import { upsertUserContext } from '@/lib/db';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { markOnboardingComplete } from '@/storage/flags';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const TIME_OPTIONS = [10, 20, 30, 45, 60];
+// ─── Features shown on the welcome screen ─────────────────────────────────────
+
+const HIGHLIGHTS: { icon: React.ComponentProps<typeof MaterialIcons>['name']; text: string }[] = [
+  { icon: 'psychology', text: 'AI-powered coaching tailored to you' },
+  { icon: 'menu-book', text: 'Choose from a library of expert coaches' },
+  { icon: 'check-circle-outline', text: 'Daily tasks to keep you on track' },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [project, setProject] = useState('');
-  const [blocker, setBlocker] = useState('');
-  const [timeDailyMin, setTimeDailyMin] = useState(30);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleContinue = async () => {
-    setError('');
-
-    if (step === 1) {
-      if (!project.trim()) {
-        setError('Please enter your project');
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      if (!blocker.trim()) {
-        setError('Please enter your main blocker');
-        return;
-      }
-      setStep(3);
-    } else if (step === 3) {
-      // Final step - save to Supabase
-      setLoading(true);
-      
-      try {
-        const { error: dbError } = await upsertUserContext({
-          project: project.trim(),
-          blocker: blocker.trim(),
-          time_daily_min: timeDailyMin,
-          tone: 'direct',
-        });
-
-        if (dbError) {
-          setError('Failed to save. Please try again.');
-          setLoading(false);
-          return;
-        }
-
-        // Save onboarding completion to AsyncStorage
-        const userContext = {
-          onboardingCompleted: true,
-          createdAt: new Date().toISOString(),
-        };
-        await AsyncStorage.setItem('user_context', JSON.stringify(userContext));
-
-        // Navigate to library
-        router.replace('/(drawer)/library');
-      } catch (err) {
-        console.error('Onboarding error:', err);
-        setError('Something went wrong. Please try again.');
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleBack = () => {
-    setError('');
-    if (step > 1) {
-      setStep(step - 1);
-    }
-  };
-
-  const canContinue = () => {
-    if (step === 1) return project.trim().length > 0;
-    if (step === 2) return blocker.trim().length > 0;
-    if (step === 3) return timeDailyMin > 0;
-    return false;
-  };
-
-  const getStepTitle = () => {
-    switch (step) {
-      case 1:
-        return 'What are you working on?';
-      case 2:
-        return "What's blocking you?";
-      case 3:
-        return 'How much time daily?';
-      default:
-        return 'Welcome to PocketCoach';
-    }
-  };
-
-  const getStepSubtitle = () => {
-    switch (step) {
-      case 1:
-        return 'Tell us about your main project or goal';
-      case 2:
-        return "What's your biggest challenge right now?";
-      case 3:
-        return 'How many minutes can you commit per day?';
-      default:
-        return "Let's get started";
-    }
+    await markOnboardingComplete();
+    router.replace('/(drawer)/library');
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Stepper */}
-        <View style={styles.stepper}>
-          {[1, 2, 3].map((num) => (
-            <View key={num} style={styles.stepperItem}>
-              <View
-                style={[
-                  styles.stepperCircle,
-                  step >= num && styles.stepperCircleActive,
-                  step > num && styles.stepperCircleComplete,
-                ]}
-              >
-                <Typography
-                  variant="caption"
-                  style={[
-                    styles.stepperNumber,
-                    step >= num ? styles.stepperNumberActive : {},
-                  ]}
-                >
-                  {num}
-                </Typography>
+      <View style={styles.content}>
+        {/* Hero */}
+        <View style={styles.hero}>
+          <View style={styles.iconCircle}>
+            <MaterialIcons name="rocket-launch" size={48} color="#000" />
+          </View>
+          <Typography variant="h1" style={styles.title}>
+            Welcome to{'\n'}PocketCoach OS
+          </Typography>
+          <Typography variant="body" style={styles.subtitle}>
+            Your personal AI coaching assistant.{'\n'}Let's get started.
+          </Typography>
+        </View>
+
+        {/* Highlight cards */}
+        <View style={styles.highlights}>
+          {HIGHLIGHTS.map((h) => (
+            <View key={h.text} style={styles.highlightRow}>
+              <View style={styles.highlightIcon}>
+                <MaterialIcons name={h.icon} size={24} color="#000" />
               </View>
-              {num < 3 && (
-                <View
-                  style={[
-                    styles.stepperLine,
-                    step > num && styles.stepperLineActive,
-                  ]}
-                />
-              )}
+              <Typography variant="body" style={styles.highlightText}>
+                {h.text}
+              </Typography>
             </View>
           ))}
         </View>
 
-        <View style={styles.header}>
-          <Typography variant="h1" style={styles.title}>
-            {getStepTitle()}
-          </Typography>
-          <Typography variant="body" style={styles.subtitle}>
-            {getStepSubtitle()}
-          </Typography>
-        </View>
-
-        <View style={styles.form}>
-          {step === 1 && (
-            <>
-              <Typography variant="h3" style={styles.label}>
-                Your Project
-              </Typography>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={project}
-                onChangeText={setProject}
-                placeholder="e.g., Launch my fitness app, Write my book, Start a business..."
-                placeholderTextColor="#CCCCCC"
-                multiline
-                numberOfLines={3}
-                autoFocus
-              />
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <Typography variant="h3" style={styles.label}>
-                Your Main Blocker
-              </Typography>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={blocker}
-                onChangeText={setBlocker}
-                placeholder="e.g., Procrastination, Time management, Fear of failure..."
-                placeholderTextColor="#CCCCCC"
-                multiline
-                numberOfLines={3}
-                autoFocus
-              />
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <Typography variant="h3" style={styles.label}>
-                Daily Time Commitment
-              </Typography>
-              <View style={styles.timeOptions}>
-                {TIME_OPTIONS.map((time) => (
-                  <TouchableOpacity
-                    key={time}
-                    style={[
-                      styles.timeOption,
-                      timeDailyMin === time && styles.timeOptionActive,
-                    ]}
-                    onPress={() => setTimeDailyMin(time)}
-                  >
-                    <Typography
-                      variant="h2"
-                      style={[
-                        styles.timeOptionNumber,
-                        timeDailyMin === time ? styles.timeOptionNumberActive : {},
-                      ]}
-                    >
-                      {time}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      style={[
-                        styles.timeOptionLabel,
-                        timeDailyMin === time ? styles.timeOptionLabelActive : {},
-                      ]}
-                    >
-                      minutes
-                    </Typography>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
-        </View>
-
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Typography variant="body" style={styles.errorText}>
-              {error}
-            </Typography>
-          </View>
-        ) : null}
-
+        {/* CTA */}
         <View style={styles.footer}>
-          {step > 1 && (
-            <Button 
-              title="Back" 
-              onPress={handleBack} 
-              variant="secondary"
-              style={styles.backButton}
-              disabled={loading}
-            />
-          )}
-          <Button 
-            title={loading ? 'Saving...' : step === 3 ? 'Get Started' : 'Continue'} 
-            onPress={handleContinue}
-            disabled={!canContinue() || loading}
-          />
-          {loading && (
-            <ActivityIndicator style={styles.loader} color="#000000" />
-          )}
+          <Button title="Continue" onPress={handleContinue} />
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -268,137 +72,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    padding: 24,
+    flex: 1,
+    paddingHorizontal: 28,
+    paddingTop: 60,
+    paddingBottom: 40,
     justifyContent: 'space-between',
-    minHeight: '100%',
   },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  stepperItem: {
-    flexDirection: 'row',
+
+  // Hero
+  hero: {
     alignItems: 'center',
   },
-  stepperCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-  },
-  stepperCircleActive: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  stepperCircleComplete: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  stepperNumber: {
-    color: '#999999',
-    fontWeight: '600',
-  },
-  stepperNumberActive: {
-    color: '#FFFFFF',
-  },
-  stepperLine: {
-    width: 40,
-    height: 2,
-    backgroundColor: '#E5E5E5',
-    marginHorizontal: 4,
-  },
-  stepperLineActive: {
-    backgroundColor: '#000000',
-  },
-  header: {
-    marginTop: 20,
+    justifyContent: 'center',
+    marginBottom: 28,
   },
   title: {
-    marginBottom: 12,
+    textAlign: 'center',
+    marginBottom: 14,
+    lineHeight: 38,
   },
   subtitle: {
-    color: '#666666',
-  },
-  form: {
-    flex: 1,
-    marginTop: 40,
-  },
-  label: {
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 56,
-  },
-  textArea: {
-    minHeight: 120,
-    textAlignVertical: 'top',
-  },
-  timeOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  timeOption: {
-    flex: 1,
-    minWidth: 90,
-    aspectRatio: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-  },
-  timeOptionActive: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  timeOptionNumber: {
-    fontWeight: '700',
-    color: '#000000',
-  },
-  timeOptionNumberActive: {
-    color: '#FFFFFF',
-  },
-  timeOptionLabel: {
-    marginTop: 4,
-    color: '#666666',
-  },
-  timeOptionLabelActive: {
-    color: '#FFFFFF',
-  },
-  errorContainer: {
-    backgroundColor: '#FFEBEE',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  errorText: {
-    color: '#C62828',
     textAlign: 'center',
+    color: '#666',
+    lineHeight: 22,
   },
+
+  // Highlights
+  highlights: {
+    gap: 18,
+    paddingHorizontal: 8,
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  highlightIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  highlightText: {
+    flex: 1,
+    color: '#333',
+  },
+
+  // Footer
   footer: {
     gap: 12,
-    marginTop: 40,
-    position: 'relative',
-  },
-  backButton: {
-    marginBottom: 8,
-  },
-  loader: {
-    position: 'absolute',
-    right: 24,
-    top: 16,
   },
 });

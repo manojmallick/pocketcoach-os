@@ -2,10 +2,11 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import Typography from '@/components/Typography';
-import { isDevBuild } from '@/lib/build-mode';
 import { getUserId, signOut } from '@/lib/auth';
+import { isDevBuild } from '@/lib/build-mode';
 import { restorePurchases } from '@/lib/revenuecat';
 import { useProStatus } from '@/state/entitlements';
+import { clearOnboardingFlag } from '@/storage/flags';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -62,8 +63,8 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     // Sign out from Supabase
     await signOut();
-    // Clear user context and navigate to onboarding
-    await AsyncStorage.removeItem('user_context');
+    // Clear onboarding flag so the user sees welcome on next launch
+    await clearOnboardingFlag();
     router.replace('/onboarding');
   };
 
