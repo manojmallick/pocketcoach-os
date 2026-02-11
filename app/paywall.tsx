@@ -2,7 +2,14 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Typography from '@/components/Typography';
 import { billingWarning, getBuildModeLabel } from '@/lib/build-mode';
-import { getOfferings, purchase, restorePurchases } from '@/lib/revenuecat';
+import {
+  clearOfferingsConfigError,
+  getOfferings,
+  hasOfferingsConfigError,
+  isRCInitialized,
+  purchase,
+  restorePurchases,
+} from '@/lib/revenuecat';
 import { useProStatus } from '@/state/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Constants from 'expo-constants';
@@ -120,17 +127,32 @@ export default function PaywallScreen() {
 
   const loadOfferings = async () => {
     setState({ kind: 'loading' });
+
+    // Clear any cached config-error flag so we genuinely retry
+    clearOfferingsConfigError();
+
     try {
       const offerings = await getOfferings();
 
       if (!offerings?.current || offerings.current.availablePackages.length === 0) {
-        setState({
-          kind: 'error',
-          message: 'No subscription plans are available right now.',
-          raw: offerings
-            ? `Offerings fetched but current is ${offerings.current ? 'empty' : 'null'}`
-            : 'getOfferings() returned null',
-        });
+        // Choose a helpful message depending on the root cause
+        const configErr = hasOfferingsConfigError();
+        const notInitialized = !isRCInitialized();
+
+        let message = 'No subscription plans are available right now.';
+        let raw = offerings
+          ? `Offerings fetched but current is ${offerings.current ? 'empty' : 'null'}`
+          : 'getOfferings() returned null';
+
+        if (notInitialized) {
+          message = 'In-app purchases are not available in this build.';
+          raw = 'RevenueCat SDK was not initialized (Expo Go or missing API key).';
+        } else if (configErr) {
+          message = 'Products are not configured in the store yet.';
+          raw = 'No Play Store / App Store products linked to RevenueCat offerings. Configure them in the RevenueCat dashboard.';
+        }
+
+        setState({ kind: 'error', message, raw });
         return;
       }
 

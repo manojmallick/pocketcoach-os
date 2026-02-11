@@ -10,13 +10,19 @@ import Purchases, {
 // ─── Internal state ───────────────────────────────────────────────────────────
 
 let _initialized = false;
+let _configuring = false;
 let _initError: string | null = null;
+/** Set after an offerings fetch fails due to missing products — avoids retry spam. */
+let _offeringsConfigError = false;
 
 /** Whether `initPurchases` has run successfully (SDK configured). */
 export const isRCInitialized = () => _initialized;
 
 /** Last init error message (if any). */
 export const getRCInitError = () => _initError;
+
+/** True if offerings failed due to a config issue (no products in dashboard). */
+export const hasOfferingsConfigError = () => _offeringsConfigError;
 
 // ─── Env helpers ──────────────────────────────────────────────────────────────
 
@@ -52,7 +58,8 @@ export function isExpoGo(): boolean {
  * successful call will configure the SDK.  Never throws.
  */
 export async function initPurchases(): Promise<void> {
-  if (_initialized) return;
+  if (_initialized || _configuring) return;
+  _configuring = true;
   _initError = null;
 
   try {
@@ -70,7 +77,9 @@ export async function initPurchases(): Promise<void> {
       return;
     }
 
-    if (__DEV__) Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    // WARN level is quieter than DEBUG — avoids flooding the console with
+    // offering/billing retry noise on devices without Play Services.
+    if (__DEV__) Purchases.setLogLevel(LOG_LEVEL.WARN);
     Purchases.configure({ apiKey });
     _initialized = true;
 
@@ -79,6 +88,8 @@ export async function initPurchases(): Promise<void> {
     _initError = error instanceof Error ? error.message : String(error);
     console.error('RevenueCat: init failed —', _initError);
     // Don't throw — app continues in degraded mode
+  } finally {
+    _configuring = false;
   }
 }
 
@@ -86,12 +97,26 @@ export async function initPurchases(): Promise<void> {
 
 export async function getOfferings(): Promise<PurchasesOfferings | null> {
   if (!_initialized) return null;
+  // If a previous fetch already determined products are missing, don't retry
+  // (avoids log spam on every foreground event).
+  if (_offeringsConfigError) return null;
   try {
     return await Purchases.getOfferings();
   } catch (error) {
-    console.error('RevenueCat getOfferings error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    // Detect the specific "no products configured" error so we can stop
+    // retrying and surface a better message to the user.
+    if (msg.includes('configuration') || msg.includes('ConfigurationError')) {
+      _offeringsConfigError = true;
+    }
+    console.warn('RevenueCat getOfferings error:', msg);
     return null;
   }
+}
+
+/** Reset the cached offerings-config-error flag (e.g. after dashboard fix). */
+export function clearOfferingsConfigError(): void {
+  _offeringsConfigError = false;
 }
 
 export async function purchase(
