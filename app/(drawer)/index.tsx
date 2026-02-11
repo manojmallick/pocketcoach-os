@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import { Redirect } from 'expo-router';
 
 /**
@@ -6,5 +7,5 @@ import { Redirect } from 'expo-router';
  * landing screen.
  */
 export default function DrawerIndex() {
-  return <Redirect href="/(drawer)/library" />;
+  return <Redirect href={'/(drawer)/library' as Href} />;
 }

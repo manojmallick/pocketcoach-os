@@ -157,6 +157,8 @@ export default function TodayScreen() {
           data={filteredCards}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          onRefresh={loadCards}
+          refreshing={loading}
           renderItem={({ item }) => (
             <TouchableOpacity 
               onPress={() => handleToggleComplete(item)}

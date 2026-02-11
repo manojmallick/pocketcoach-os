@@ -2,6 +2,7 @@ import Button from '@/components/Button';
 import Typography from '@/components/Typography';
 import { markOnboardingComplete } from '@/storage/flags';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -22,7 +23,7 @@ export default function OnboardingScreen() {
 
   const handleContinue = async () => {
     await markOnboardingComplete();
-    router.replace('/(drawer)/library');
+    router.replace('/(drawer)/library' as Href);
   };
 
   return (

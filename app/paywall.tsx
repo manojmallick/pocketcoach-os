@@ -9,15 +9,15 @@ import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { PurchasesPackage } from 'react-native-purchases';
 
@@ -165,7 +165,7 @@ export default function PaywallScreen() {
       if (customerInfo) {
         await refresh();
         Alert.alert('Welcome to Pro!', 'You now have full access to every coach.', [
-          { text: 'Let's go', onPress: () => router.back() },
+          { text: "Let's go", onPress: () => router.back() },
         ]);
       }
       setPurchaseState({ kind: 'idle' });
@@ -194,7 +194,7 @@ export default function PaywallScreen() {
             { text: 'OK', onPress: () => router.back() },
           ]);
         } else {
-          Alert.alert('Nothing found', 'We couldn't find a previous Pro purchase on this account.');
+          Alert.alert('Nothing found', "We couldn't find a previous Pro purchase on this account.");
         }
       }
       setPurchaseState({ kind: 'idle' });

@@ -4,6 +4,7 @@ import { getCoachTemplates } from '@/lib/db';
 import { useProStatus } from '@/state/entitlements';
 import { CoachTemplate } from '@/types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import type { Href } from 'expo-router';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -203,7 +204,7 @@ export default function LibraryScreen() {
       router.push({
         pathname: '/(drawer)/chat',
         params: { coach_slug: coach.slug },
-      });
+      } as Href);
     },
     [pro, router],
   );

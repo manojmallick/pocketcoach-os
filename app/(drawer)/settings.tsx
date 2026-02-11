@@ -3,11 +3,11 @@ import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import Typography from '@/components/Typography';
 import {
-  DELETE_ACCOUNT_URL,
-  PRIVACY_POLICY_URL,
-  SUPPORT_MAILTO,
-  TERMS_URL,
-  getManageSubscriptionUrl,
+    DELETE_ACCOUNT_URL,
+    PRIVACY_POLICY_URL,
+    SUPPORT_MAILTO,
+    TERMS_URL,
+    getManageSubscriptionUrl,
 } from '@/constants/urls';
 import { getUserId, signOut } from '@/lib/auth';
 import { isDevBuild } from '@/lib/build-mode';
@@ -20,13 +20,13 @@ import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Linking,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Alert,
+    Linking,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -199,11 +199,15 @@ export default function SettingsScreen() {
   // ── Section data ──────────────────────────────────────────────────────────
 
   const subscriptionSection: SettingsRow[] = [
-    {
-      icon: 'star',
-      label: 'Upgrade to Pro',
-      action: () => router.push('/paywall'),
-    },
+    ...(!pro
+      ? [
+          {
+            icon: 'star' as const,
+            label: 'Upgrade to Pro',
+            action: () => router.push('/paywall'),
+          },
+        ]
+      : []),
     {
       icon: 'refresh',
       label: restoring ? 'Restoring…' : 'Restore Purchases',

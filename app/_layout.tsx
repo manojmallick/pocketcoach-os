@@ -3,6 +3,7 @@ import { initPurchases } from '@/lib/revenuecat';
 import { startProStatusListener, useProStatus } from '@/state/entitlements';
 import { hasCompletedOnboarding } from '@/storage/flags';
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import type { Href } from 'expo-router';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -58,8 +59,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (isCheckingAuth) return;
 
-    const inDrawerGroup = segments[0] === '(drawer)';
-    const onPaywall = segments[0] === 'paywall';
+    const seg = segments[0] as string;
+    const inDrawerGroup = seg === '(drawer)';
+    const onPaywall = seg === 'paywall';
 
     // Never interrupt paywall — it can be pushed from anywhere
     if (onPaywall) return;
@@ -69,7 +71,7 @@ export default function RootLayout() {
       router.replace('/onboarding');
     } else if (onboardingDone && segments[0] === 'onboarding') {
       // Already onboarded but somehow on onboarding screen → library
-      router.replace('/(drawer)/library');
+      router.replace('/(drawer)/library' as Href);
     }
   }, [isCheckingAuth, onboardingDone, segments]);
 
