@@ -3,12 +3,12 @@ import Card from '@/components/Card';
 import Typography from '@/components/Typography';
 import { billingWarning, getBuildModeLabel } from '@/lib/build-mode';
 import {
-  clearOfferingsConfigError,
-  getOfferings,
-  hasOfferingsConfigError,
-  isRCInitialized,
-  purchase,
-  restorePurchases,
+    clearOfferingsConfigError,
+    getOfferings,
+    hasOfferingsConfigError,
+    isRCInitialized,
+    purchase,
+    restorePurchases,
 } from '@/lib/revenuecat';
 import { useProStatus } from '@/state/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -123,9 +123,16 @@ export default function PaywallScreen() {
   const [purchaseState, setPurchaseState] = useState<PurchaseState>({ kind: 'idle' });
   const [showDiag, setShowDiag] = useState(false);
 
+  const logEvent = (event: string, detail?: string) => {
+    if (__DEV__) {
+      console.log(`[Paywall] ${event}${detail ? `: ${detail}` : ''}`);
+    }
+  };
+
   // ── Load offerings ──────────────────────────────────────────────────────────
 
   const loadOfferings = async () => {
+    logEvent('open');
     setState({ kind: 'loading' });
 
     // Clear any cached config-error flag so we genuinely retry
@@ -133,6 +140,7 @@ export default function PaywallScreen() {
 
     try {
       const offerings = await getOfferings();
+      logEvent('offerings_fetch', offerings?.current ? 'current' : 'none');
 
       if (!offerings?.current || offerings.current.availablePackages.length === 0) {
         // Choose a helpful message depending on the root cause
@@ -152,6 +160,7 @@ export default function PaywallScreen() {
           raw = 'No Play Store / App Store products linked to RevenueCat offerings. Configure them in the RevenueCat dashboard.';
         }
 
+        logEvent('offerings_empty', message);
         setState({ kind: 'error', message, raw });
         return;
       }
@@ -162,9 +171,11 @@ export default function PaywallScreen() {
         return (order[a.packageType] ?? 3) - (order[b.packageType] ?? 3);
       });
 
+      logEvent('offerings_ready', `${sorted.length} packages`);
       setState({ kind: 'ready', packages: sorted });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      logEvent('offerings_error', msg);
       setState({ kind: 'error', message: 'Failed to load plans.', raw: msg });
     }
   };
@@ -176,15 +187,18 @@ export default function PaywallScreen() {
   // ── Purchase ────────────────────────────────────────────────────────────────
 
   const handlePurchase = async (pkg: PurchasesPackage) => {
+    logEvent('purchase_start', pkg.identifier);
     setPurchaseState({ kind: 'purchasing', packageId: pkg.identifier });
     try {
       const { customerInfo, error } = await purchase(pkg);
       if (error) {
+        logEvent('purchase_error', error.message);
         Alert.alert('Purchase failed', error.message);
         setPurchaseState({ kind: 'idle' });
         return;
       }
       if (customerInfo) {
+        logEvent('purchase_success', pkg.identifier);
         await refresh();
         Alert.alert('Welcome to Pro!', 'You now have full access to every coach.', [
           { text: "Let's go", onPress: () => router.back() },
@@ -192,6 +206,7 @@ export default function PaywallScreen() {
       }
       setPurchaseState({ kind: 'idle' });
     } catch (err) {
+      logEvent('purchase_exception');
       Alert.alert('Error', 'Something went wrong. Please try again.');
       setPurchaseState({ kind: 'idle' });
     }
@@ -200,10 +215,12 @@ export default function PaywallScreen() {
   // ── Restore ─────────────────────────────────────────────────────────────────
 
   const handleRestore = async () => {
+    logEvent('restore_start');
     setPurchaseState({ kind: 'restoring' });
     try {
       const { customerInfo, error } = await restorePurchases();
       if (error) {
+        logEvent('restore_error', error.message);
         Alert.alert('Restore failed', error.message);
         setPurchaseState({ kind: 'idle' });
         return;
@@ -211,6 +228,7 @@ export default function PaywallScreen() {
       if (customerInfo) {
         await refresh();
         const hasPro = customerInfo.entitlements.active['pro'] !== undefined;
+        logEvent('restore_success', hasPro ? 'pro' : 'none');
         if (hasPro) {
           Alert.alert('Restored!', 'Your Pro subscription is active again.', [
             { text: 'OK', onPress: () => router.back() },
@@ -221,6 +239,7 @@ export default function PaywallScreen() {
       }
       setPurchaseState({ kind: 'idle' });
     } catch {
+      logEvent('restore_exception');
       Alert.alert('Error', 'Failed to restore purchases.');
       setPurchaseState({ kind: 'idle' });
     }
@@ -525,10 +544,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
   pkgCardHighlight: {
     borderColor: '#000',
-    backgroundColor: '#FAFAFA',
+    borderWidth: 3,
+    backgroundColor: '#FFF9F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   pkgBadge: {
     position: 'absolute',

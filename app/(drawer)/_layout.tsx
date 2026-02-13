@@ -60,6 +60,14 @@ export default function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="insights"
+        options={{
+          drawerLabel: 'Insights',
+          headerShown: true,
+          header: () => <ScreenHeader title="Insights" />,
+        }}
+      />
+      <Drawer.Screen
         name="settings"
         options={{
           drawerLabel: 'Settings',

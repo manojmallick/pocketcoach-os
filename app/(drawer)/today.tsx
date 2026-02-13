@@ -5,6 +5,7 @@ import { getUserId } from '@/lib/auth';
 import { markCardDone } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { ActionCard } from '@/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -17,11 +18,53 @@ import {
 
 type FilterType = 'active' | 'done';
 
+const STREAK_COUNT_KEY = 'streak_count';
+const STREAK_LAST_COMPLETED_KEY = 'streak_last_completed';
+const STREAK_LAST_EVAL_KEY = 'streak_last_eval';
+
+function dateKey(date: Date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function yesterdayKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return dateKey(d);
+}
+
+function isTodayCard(card: ActionCard): boolean {
+  if (!card.created_at) return false;
+  return card.created_at.slice(0, 10) === dateKey();
+}
+
+async function getStreakState(): Promise<{ count: number; lastCompleted: string; lastEvaluated: string }> {
+  const [countRaw, lastCompleted, lastEvaluated] = await Promise.all([
+    AsyncStorage.getItem(STREAK_COUNT_KEY),
+    AsyncStorage.getItem(STREAK_LAST_COMPLETED_KEY),
+    AsyncStorage.getItem(STREAK_LAST_EVAL_KEY),
+  ]);
+
+  return {
+    count: countRaw ? Number(countRaw) : 0,
+    lastCompleted: lastCompleted ?? '',
+    lastEvaluated: lastEvaluated ?? '',
+  };
+}
+
+async function setStreakState(count: number, lastCompleted: string, lastEvaluated: string): Promise<void> {
+  await Promise.all([
+    AsyncStorage.setItem(STREAK_COUNT_KEY, String(count)),
+    AsyncStorage.setItem(STREAK_LAST_COMPLETED_KEY, lastCompleted),
+    AsyncStorage.setItem(STREAK_LAST_EVAL_KEY, lastEvaluated),
+  ]);
+}
+
 export default function TodayScreen() {
   const [cards, setCards] = useState<ActionCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('active');
   const [error, setError] = useState<string | null>(null);
+  const [streakCount, setStreakCount] = useState(0);
 
   useEffect(() => {
     loadCards();
@@ -45,7 +88,13 @@ export default function TodayScreen() {
         throw new Error(fetchError.message);
       }
 
-      setCards(data || []);
+      const allCards = data || [];
+      setCards(allCards);
+
+      const todayCards = allCards.filter(isTodayCard);
+      const updatedStreak = await updateStreak(todayCards);
+      setStreakCount(updatedStreak);
+
       setLoading(false);
     } catch (err) {
       console.error('Error loading cards:', err);
@@ -54,18 +103,56 @@ export default function TodayScreen() {
     }
   };
 
+  const updateStreak = async (todayCards: ActionCard[]): Promise<number> => {
+    const today = dateKey();
+    const yesterday = yesterdayKey();
+    const { count, lastCompleted, lastEvaluated } = await getStreakState();
+
+    let nextCount = count;
+    let nextLastCompleted = lastCompleted;
+    let nextLastEvaluated = lastEvaluated;
+
+    if (lastEvaluated !== today) {
+      if (lastCompleted !== yesterday) {
+        nextCount = 0;
+      }
+      nextLastEvaluated = today;
+    }
+
+    const todayComplete = todayCards.length > 0 && todayCards.every((card) => card.status === 'done');
+
+    if (todayComplete && nextLastCompleted !== today) {
+      nextCount = nextCount > 0 ? nextCount + 1 : 1;
+      nextLastCompleted = today;
+    }
+
+    if (
+      nextCount !== count ||
+      nextLastCompleted !== lastCompleted ||
+      nextLastEvaluated !== lastEvaluated
+    ) {
+      await setStreakState(nextCount, nextLastCompleted, nextLastEvaluated);
+    }
+
+    return nextCount;
+  };
+
   const handleToggleComplete = async (card: ActionCard) => {
     // Only allow marking active cards as done
     if (card.status !== 'active') return;
 
+    let nextCards: ActionCard[] = [];
     // Optimistic UI update
-    setCards(prevCards =>
-      prevCards.map(c =>
+    setCards(prevCards => {
+      nextCards = prevCards.map(c =>
         c.id === card.id
           ? { ...c, status: 'done' as const, completed_at: new Date().toISOString() }
           : c
-      )
-    );
+      );
+      return nextCards;
+    });
+    const updatedStreak = await updateStreak(nextCards.filter(isTodayCard));
+    setStreakCount(updatedStreak);
 
     try {
       const { error } = await markCardDone(card.id);
@@ -78,13 +165,17 @@ export default function TodayScreen() {
       Alert.alert('Error', 'Failed to mark card as done');
       
       // Rollback on error
-      setCards(prevCards =>
-        prevCards.map(c =>
+      let rollbackCards: ActionCard[] = [];
+      setCards(prevCards => {
+        rollbackCards = prevCards.map(c =>
           c.id === card.id
             ? { ...c, status: 'active' as const, completed_at: undefined }
             : c
-        )
-      );
+        );
+        return rollbackCards;
+      });
+      const rollbackStreak = await updateStreak(rollbackCards.filter(isTodayCard));
+      setStreakCount(rollbackStreak);
     }
   };
 
@@ -95,9 +186,16 @@ export default function TodayScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Typography variant="body" style={styles.subtitle}>
-          {doneCount} of {activeCount + doneCount} completed
-        </Typography>
+        <View style={styles.headerRow}>
+          <Typography variant="body" style={styles.subtitle}>
+            {doneCount} of {activeCount + doneCount} completed
+          </Typography>
+          <View style={styles.streakPill}>
+            <Typography variant="caption" style={styles.streakText}>
+              Streak: {streakCount}
+            </Typography>
+          </View>
+        </View>
       </View>
 
       {/* Filter Chips */}
@@ -219,9 +317,24 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   subtitle: {
     marginTop: 8,
     color: '#666666',
+  },
+  streakPill: {
+    backgroundColor: '#F5F5F5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  streakText: {
+    color: '#444444',
   },
   filterContainer: {
     flexDirection: 'row',

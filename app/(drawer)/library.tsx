@@ -1,7 +1,7 @@
 import Card from '@/components/Card';
 import Typography from '@/components/Typography';
 import { getCoachTemplates } from '@/lib/db';
-import { useProStatus } from '@/state/entitlements';
+import { requirePro, useIsPro } from '@/src/entitlements';
 import { CoachTemplate } from '@/types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { Href } from 'expo-router';
@@ -176,29 +176,36 @@ export default function LibraryScreen() {
   const router = useRouter();
   const [coaches, setCoaches] = useState<CoachTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const pro = useProStatus((s) => s.isPro);
+  const pro = useIsPro();
 
   useEffect(() => {
     loadCoaches();
   }, []);
 
   const loadCoaches = async () => {
-    setLoading(true);
-    const { data, error } = await getCoachTemplates();
+    try {
+      setLoading(true);
+      const { data, error } = await getCoachTemplates();
 
-    if (error || data.length === 0) {
-      // Fallback so the screen is never empty
+      if (error || data.length === 0) {
+        // Fallback so the screen is never empty
+        setCoaches(FALLBACK_COACHES);
+      } else {
+        setCoaches(data);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading coaches:', err);
+      // Fallback ensures screen is never blank
       setCoaches(FALLBACK_COACHES);
-    } else {
-      setCoaches(data);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCoachPress = useCallback(
     (coach: CoachTemplate) => {
       if (coach.is_pro && !pro) {
-        router.push('/paywall');
+        requirePro();
         return;
       }
       router.push({

@@ -1,10 +1,10 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import Purchases, {
-    CustomerInfo,
-    LOG_LEVEL,
-    PurchasesOfferings,
-    PurchasesPackage,
+  CustomerInfo,
+  LOG_LEVEL,
+  PurchasesOfferings,
+  PurchasesPackage,
 } from 'react-native-purchases';
 
 // ─── Internal state ───────────────────────────────────────────────────────────
@@ -70,6 +70,9 @@ export async function initPurchases(): Promise<void> {
     }
 
     const apiKey = getPlatformKey();
+    console.log(`[RevenueCat] Platform: ${Platform.OS}`);
+    console.log(`[RevenueCat] API key length: ${apiKey?.length || 0}`);
+    console.log(`[RevenueCat] API key prefix: ${apiKey?.substring(0, 10) || 'undefined'}`);
 
     if (!apiKey) {
       _initError = `No RevenueCat API key for ${Platform.OS}. Add EXPO_PUBLIC_REVENUECAT_${Platform.OS === 'android' ? 'ANDROID' : 'IOS'}_KEY to .env`;
@@ -83,7 +86,7 @@ export async function initPurchases(): Promise<void> {
     Purchases.configure({ apiKey });
     _initialized = true;
 
-    console.log('RevenueCat: initialized');
+    console.log('RevenueCat: initialized ✅');
   } catch (error) {
     _initError = error instanceof Error ? error.message : String(error);
     console.error('RevenueCat: init failed —', _initError);
@@ -122,6 +125,12 @@ export function clearOfferingsConfigError(): void {
 export async function purchase(
   pkg: PurchasesPackage,
 ): Promise<{ customerInfo: CustomerInfo | null; error: Error | null }> {
+  if (!_initialized) {
+    return {
+      customerInfo: null,
+      error: new Error('RevenueCat SDK not initialized'),
+    };
+  }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return { customerInfo, error: null };
@@ -137,6 +146,12 @@ export async function restorePurchases(): Promise<{
   customerInfo: CustomerInfo | null;
   error: Error | null;
 }> {
+  if (!_initialized) {
+    return {
+      customerInfo: null,
+      error: new Error('RevenueCat SDK not initialized'),
+    };
+  }
   try {
     const customerInfo = await Purchases.restorePurchases();
     return { customerInfo, error: null };

@@ -19,6 +19,7 @@ const ITEMS: DrawerItem[] = [
   { label: 'Library', icon: 'menu-book', route: '/(drawer)/library' },
   { label: 'Chat', icon: 'chat-bubble-outline', route: '/(drawer)/chat' },
   { label: 'Today', icon: 'check-circle-outline', route: '/(drawer)/today' },
+  { label: 'Insights', icon: 'insights', route: '/(drawer)/insights' },
   { label: 'Settings', icon: 'settings', route: '/(drawer)/settings' },
 ];
 

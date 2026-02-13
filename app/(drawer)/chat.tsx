@@ -4,19 +4,22 @@ import Chip from '@/components/Chip';
 import Typography from '@/components/Typography';
 import { createChatSession, insertActionCards } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
+import { requirePro, useIsPro } from '@/src/entitlements';
 import { ActionCardInput, ChatResponse } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 // Fallback demo response for when network fails
@@ -81,8 +84,34 @@ const DEMO_RESPONSE: ChatResponse = {
     'Focus is a skill that improves with practice. Start with these foundational habits and build from there. Remember: what you say no to is just as important as what you say yes to.',
 };
 
+const FREE_ACTIONS_PER_DAY = 3;
+const FREE_ACTION_COUNT_KEY = 'free_action_count';
+const FREE_ACTION_DATE_KEY = 'free_action_date';
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function getFreeActionCount(): Promise<number> {
+  const storedDate = await AsyncStorage.getItem(FREE_ACTION_DATE_KEY);
+  const storedCount = await AsyncStorage.getItem(FREE_ACTION_COUNT_KEY);
+  if (storedDate !== todayKey()) {
+    await AsyncStorage.setItem(FREE_ACTION_DATE_KEY, todayKey());
+    await AsyncStorage.setItem(FREE_ACTION_COUNT_KEY, '0');
+    return 0;
+  }
+  return storedCount ? Number(storedCount) : 0;
+}
+
+async function incrementFreeActionCount(): Promise<void> {
+  const count = await getFreeActionCount();
+  await AsyncStorage.setItem(FREE_ACTION_COUNT_KEY, String(count + 1));
+}
+
 export default function ChatScreen() {
   const { coach_slug } = useLocalSearchParams<{ coach_slug?: string }>();
+  const isPro = useIsPro();
+  const inputRef = useRef<TextInput>(null);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +120,7 @@ export default function ChatScreen() {
   const [coachNotes, setCoachNotes] = useState<string>('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [addingCardId, setAddingCardId] = useState<string | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
+  const [demoMode, setDemoMode] = useState(true); // default true until edge function is deployed
 
   useEffect(() => {
     loadDemoMode();
@@ -130,25 +159,31 @@ export default function ChatScreen() {
     setError(null);
 
     try {
-      // Call Supabase Edge Function
-      const { data, error: functionError } = await supabase.functions.invoke('chat', {
-        body: {
-          coach_slug: coach_slug || 'focus-coach',
-          message,
-          demo_mode: demoMode,
-        },
-      });
+      let chatResponse: ChatResponse;
 
-      if (functionError) {
-        throw new Error(functionError.message || 'Failed to get response');
-      }
+      if (demoMode) {
+        // Skip network call — use local demo data instantly
+        chatResponse = DEMO_RESPONSE;
+      } else {
+        // Call Supabase Edge Function
+        const { data, error: functionError } = await supabase.functions.invoke('chat', {
+          body: {
+            coach_slug: coach_slug || 'focus-coach',
+            message,
+            demo_mode: demoMode,
+          },
+        });
 
-      // Parse response as ChatResponse
-      const chatResponse = data as ChatResponse;
+        if (functionError) {
+          throw new Error(functionError.message || 'Failed to get response');
+        }
 
-      // Validate response structure
-      if (!chatResponse || (!chatResponse.cards && !chatResponse.coach_notes)) {
-        throw new Error('Invalid response format');
+        chatResponse = data as ChatResponse;
+
+        // Validate response structure
+        if (!chatResponse || (!chatResponse.cards && !chatResponse.coach_notes)) {
+          throw new Error('Invalid response format');
+        }
       }
 
       // Store in database
@@ -170,10 +205,9 @@ export default function ChatScreen() {
       setCoachNotes(chatResponse.coach_notes || '');
       setLoading(false);
     } catch (err) {
-      console.error('Chat error:', err);
-      
-      // Use fallback response for any error (Edge Function not deployed, network issues, etc.)
-      console.log('Using demo fallback response due to error');
+      // Edge Function not deployed or network issue — expected during dev.
+      // Fall back to demo response silently.
+      console.warn('Chat: falling back to demo response —', (err as Error).message);
       try {
         // Use fallback response
         const fallbackResponse = DEMO_RESPONSE;
@@ -219,6 +253,14 @@ export default function ChatScreen() {
       return;
     }
 
+    if (!isPro) {
+      const count = await getFreeActionCount();
+      if (count >= FREE_ACTIONS_PER_DAY) {
+        requirePro();
+        return;
+      }
+    }
+
     try {
       setAddingCardId(card.title);
       const { error } = await insertActionCards(sessionId, [card]);
@@ -228,6 +270,9 @@ export default function ChatScreen() {
       }
 
       Alert.alert('Success', 'Action card added to Today');
+      if (!isPro) {
+        await incrementFreeActionCount();
+      }
       setAddingCardId(null);
     } catch (err) {
       console.error('Error adding card:', err);
@@ -237,6 +282,14 @@ export default function ChatScreen() {
   };
 
   const activeCoachName = getCoachName(coach_slug || 'focus-coach');
+
+  // Auto-focus input when screen loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -250,12 +303,13 @@ export default function ChatScreen() {
       
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={90}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Welcome Message */}
           {actionCards.length === 0 && !loading && (
@@ -374,22 +428,36 @@ export default function ChatScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="What would you like to work on?"
-            placeholderTextColor="#999999"
-            multiline
-            maxLength={500}
-            editable={!loading}
-          />
-          <Button 
-            title="Send" 
-            onPress={handleSend} 
-            disabled={!inputText.trim() || loading} 
-          />
+        <View style={styles.composer}>
+          <View style={styles.inputWrap}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="What would you like to work on?"
+              value={inputText}
+              onChangeText={setInputText}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
+              editable={!loading}
+            />
+            {__DEV__ && (
+              <Text style={styles.inputDebug}>
+                {inputText.length} chars
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!inputText.trim()}
+            style={[
+              styles.sendButton,
+              !inputText.trim() && styles.sendButtonDisabled,
+            ]}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -421,6 +489,46 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingBottom: 24,
+  },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderColor: '#EEEEEE',
+    backgroundColor: '#FFFFFF',
+    zIndex: 2,
+  },
+  inputWrap: {
+    flex: 1,
+    marginRight: 8,
+  },
+  input: {
+    backgroundColor: '#F2F2F2',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 44,
+  },
+  inputDebug: {
+    marginTop: 6,
+    color: '#888888',
+    fontSize: 12,
+  },
+  sendButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#CCCCCC',
+  },
+  sendButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   welcomeContainer: {
     paddingVertical: 40,
@@ -529,22 +637,5 @@ const styles = StyleSheet.create({
   planText: {
     color: '#333333',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 24,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-    alignItems: 'flex-end',
-    backgroundColor: '#FFFFFF',
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    maxHeight: 100,
-  },
+
 });

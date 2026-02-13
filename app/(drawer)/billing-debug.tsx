@@ -2,8 +2,7 @@ import Card from '@/components/Card';
 import Typography from '@/components/Typography';
 import {
     billingWarning,
-    collectBuildDiagnostics,
-    getBuildMode,
+    collectBuildDiagnostics
 } from '@/lib/build-mode';
 import {
     getAndroidKey,

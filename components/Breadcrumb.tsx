@@ -1,4 +1,4 @@
-import { useSegments } from 'expo-router';
+import { useLocalSearchParams, useSegments } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -15,6 +15,7 @@ const LABEL_MAP: Record<string, string> = {
   library: 'Library',
   chat: 'Chat',
   today: 'Today',
+  insights: 'Insights',
   settings: 'Settings',
   onboarding: 'Onboarding',
   paywall: 'Upgrade',
@@ -30,6 +31,12 @@ function humanize(segment: string): string {
   );
 }
 
+function titleFromParam(value: string): string {
+  return value
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 interface BreadcrumbProps {
   /** Optional extra crumb appended at the end, e.g. a coach name */
   suffix?: string;
@@ -37,12 +44,19 @@ interface BreadcrumbProps {
 
 export default function Breadcrumb({ suffix }: BreadcrumbProps) {
   const segments = useSegments();
+  const params = useLocalSearchParams();
 
   const crumbs = segments
     .map(humanize)
     .filter(Boolean);
 
-  if (suffix) crumbs.push(suffix);
+  const coachParam = params.coach_slug;
+  const coachSlug = Array.isArray(coachParam) ? coachParam[0] : coachParam;
+  const isChat = segments.includes('chat');
+  const autoSuffix = isChat && coachSlug ? titleFromParam(coachSlug) : undefined;
+  const finalSuffix = suffix ?? autoSuffix;
+
+  if (finalSuffix) crumbs.push(finalSuffix);
 
   if (crumbs.length === 0) return null;
 

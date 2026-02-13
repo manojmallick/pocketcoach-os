@@ -12,7 +12,9 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_aVtITHyaCAfPykUJfubKOErjPud",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DISABLED_iOS_only"
       }
     },
     "preview": {
@@ -21,16 +23,22 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_aVtITHyaCAfPykUJfubKOErjPud",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DISABLED_iOS_only"
       }
     },
     "production": {
       "autoIncrement": true,
+      "distribution": "store",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
       },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_aVtITHyaCAfPykUJfubKOErjPud",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DISABLED_iOS_only"
       }
     }
   },

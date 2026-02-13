@@ -1,6 +1,7 @@
-import { useProStatus } from '@/state/entitlements';
+import { useIsPro } from '@/src/entitlements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +13,8 @@ interface HeaderProps {
 export default function Header({ title = '' }: HeaderProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const pro = useProStatus((s) => s.isPro);
+  const router = useRouter();
+  const pro = useIsPro();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
@@ -33,7 +35,13 @@ export default function Header({ title = '' }: HeaderProps) {
           <Text style={styles.proBadgeText}>PRO</Text>
         </View>
       ) : (
-        <View style={styles.placeholder} />
+        <TouchableOpacity
+          style={styles.proBadge}
+          onPress={() => router.push('/paywall')}
+          hitSlop={8}
+        >
+          <Text style={styles.proBadgeText}>PRO</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -66,14 +74,19 @@ const styles = StyleSheet.create({
   },
   proBadge: {
     backgroundColor: '#000000',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   proBadgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
 });

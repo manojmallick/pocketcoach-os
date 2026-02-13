@@ -1,3 +1,4 @@
+import Typography from '@/components/Typography';
 import { ensureAuth } from '@/lib/auth';
 import { initPurchases } from '@/lib/revenuecat';
 import { startProStatusListener, useProStatus } from '@/state/entitlements';
@@ -6,7 +7,8 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import type { Href } from 'expo-router';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 export const unstable_settings = {
@@ -29,6 +31,7 @@ const lightTheme = {
 export default function RootLayout() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const [hasRouted, setHasRouted] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
@@ -59,24 +62,45 @@ export default function RootLayout() {
   useEffect(() => {
     if (isCheckingAuth) return;
 
-    const seg = segments[0] as string;
+    const seg = segments[0] as string | undefined;
     const inDrawerGroup = seg === '(drawer)';
+    const onOnboarding = seg === 'onboarding';
     const onPaywall = seg === 'paywall';
 
     // Never interrupt paywall — it can be pushed from anywhere
-    if (onPaywall) return;
-
-    if (!onboardingDone && inDrawerGroup) {
-      // First launch → show onboarding
-      router.replace('/onboarding');
-    } else if (onboardingDone && segments[0] === 'onboarding') {
-      // Already onboarded but somehow on onboarding screen → library
-      router.replace('/(drawer)/library' as Href);
+    if (onPaywall) {
+      setHasRouted(true);
+      return;
     }
-  }, [isCheckingAuth, onboardingDone, segments]);
 
-  if (isCheckingAuth) {
-    return null; // Or a loading screen
+    if (!onboardingDone) {
+      if (!onOnboarding) {
+        router.replace('/onboarding');
+      }
+      setHasRouted(true);
+      return;
+    }
+
+    if (!inDrawerGroup) {
+      router.replace('/(drawer)/library' as Href);
+      setHasRouted(true);
+      return;
+    }
+
+    setHasRouted(true);
+  }, [isCheckingAuth, onboardingDone, segments, router]);
+
+  const isBooting = useMemo(() => isCheckingAuth || !hasRouted, [isCheckingAuth, hasRouted]);
+
+  if (isBooting) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#000000" />
+        <Typography variant="caption" style={styles.loadingLabel}>
+          Loading PocketCoach…
+        </Typography>
+      </View>
+    );
   }
 
   return (
@@ -97,8 +121,28 @@ export default function RootLayout() {
             headerShown: false,
           }} 
         />
+        <Stack.Screen
+          name="debug"
+          options={{
+            title: 'Debug',
+            headerShown: true,
+          }}
+        />
       </Stack>
       <StatusBar style="dark" />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    gap: 12,
+  },
+  loadingLabel: {
+    color: '#666666',
+  },
+});
